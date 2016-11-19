@@ -344,6 +344,9 @@ HttpExtensiveAccessory.prototype = {
                 if (response.statusCode === 200) {
                     this.log('HTTP set %s function succeeded!', type);
                     callback();
+                    // if (type == "set_target_url" && this.servive == "GarageDoorOpener") {
+                    //     this.setDoorMoving(value, true);
+                    // }
                 } else {
                     this.log('set %s returned statusCode: %s', type, response.statusCode);
                     callback(new(Error("set " + type + " returned statusCode: " + response.statusCode)));
@@ -619,5 +622,65 @@ HttpExtensiveAccessory.prototype = {
 
                 return [informationService, this.serviceObj];
         }
-    }
+    },
+
+    setDoorMoving: function(targetDoorState, homekitTriggered) {
+		var service = this.serviceObj;
+
+		if (this.movingTimer) {
+			clearTimeout(this.movingTimer);
+			delete this.movingTimer;
+		}
+
+		if (this.isMoving === true) {
+			delete this.isMoving;
+			this.setCurrentDoorState(Characteristic.CurrentDoorState.STOPPED);
+
+			// Toggle TargetDoorState after receiving a stop
+			setTimeout(
+				function(obj, state) {
+					obj.updateValue(state);
+				},
+				500,
+				service.getCharacteristic(Characteristic.TargetDoorState),
+				targetDoorState == Characteristic.TargetDoorState.OPEN ? Characteristic.TargetDoorState.CLOSED : Characteristic.TargetDoorState.OPEN
+			);
+			return;
+		}
+
+		this.isMoving = true;
+
+		if (homekitTriggered === true) {
+			var currentDoorState = service.getCharacteristic(Characteristic.CurrentDoorState);
+
+			if (targetDoorState == Characteristic.TargetDoorState.CLOSED) {
+				if (currentDoorState.value != Characteristic.CurrentDoorState.CLOSED) {
+					this.setCurrentDoorState(Characteristic.CurrentDoorState.CLOSING);
+				}
+			}
+			else if (targetDoorState == Characteristic.TargetDoorState.OPEN) {
+				if ((this.door_sensor_present !== true && currentDoorState.value != Characteristic.CurrentDoorState.OPEN) || currentDoorState.value == Characteristic.CurrentDoorState.STOPPED) {
+					this.setCurrentDoorState(Characteristic.CurrentDoorState.OPENING);
+				}
+			}
+		}
+
+		this.movingTimer = setTimeout(function(self) {
+			delete self.movingTimer;
+			delete self.isMoving;
+
+			var targetDoorState = self.garageDoorService.getCharacteristic(Characteristic.TargetDoorState);
+
+			if (self.door_sensor_present !== true) {
+				self.setCurrentDoorState(targetDoorState.value ? Characteristic.CurrentDoorState.CLOSED : Characteristic.CurrentDoorState.OPEN);
+				return;
+			}
+
+			self.getCurrentDoorState(function(err, status) {
+				if (!err) {
+					self.setCurrentDoorState(status ? Characteristic.CurrentDoorState.CLOSED : Characteristic.CurrentDoorState.OPEN);
+				}
+			});
+		}, this.door_open_timer * 1000, this);
+	}
 };
