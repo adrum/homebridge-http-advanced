@@ -59,6 +59,9 @@ function HttpExtensiveAccessory(log, config) {
     // General info
     this.name = config["name"];
     this.service = config["service"] || "Switch";
+	this.manufacturer = config["manufacturer"] || "HTTP Manufacturer";
+	this.model = config["model"] || "HTTP Model";
+	this.serial_number = config["serial_number"] || "HTTP Serial Number";
 
     // Authentication info
     this.username = config["username"] || "";
@@ -538,9 +541,9 @@ HttpExtensiveAccessory.prototype = {
         var informationService = new Service.AccessoryInformation();
 
         informationService
-            .setCharacteristic(Characteristic.Manufacturer, "HTTP Manufacturer")
-            .setCharacteristic(Characteristic.Model, "HTTP Model")
-            .setCharacteristic(Characteristic.SerialNumber, "HTTP Serial Number");
+            .setCharacteristic(Characteristic.Manufacturer, this.manufacturer)
+            .setCharacteristic(Characteristic.Model, this.model)
+            .setCharacteristic(Characteristic.SerialNumber, this.serial_number);
 
         switch (this.service) {
             case "Switch":
